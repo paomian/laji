@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 #[derive(Clone)]
 pub enum Expr {
     Add(Box<Expr>,Box<Expr>),
@@ -5,7 +7,7 @@ pub enum Expr {
     Multiply(Box<Expr>,Box<Expr>),
     Boolean(bool),
     LessThan(Box<Expr>,Box<Expr>),
-    //Variable(String)
+    Variable(String)
 }
 
 #[derive(Clone)]
@@ -14,14 +16,14 @@ pub struct Machine {
 }
 
 impl Machine {
-    fn step(&mut self) {
-        self.ex = self.ex.clone().reduce();
+    fn step(&mut self,env:&mut BTreeMap<String,&Expr>) {
+        self.ex = self.ex.clone().reduce(env);
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self,env:&mut BTreeMap<String,&Expr>) {
         while self.ex.is_reducible() {
             self.ex.p();
-            self.step();
+            self.step(env);
         }
         self.ex.p();
     }
@@ -35,7 +37,7 @@ impl Expr {
             Expr::Multiply(ref l,ref r) => format!("({} * {})", l.to_s(), r.to_s()),
             Expr::LessThan(ref l,ref r) => format!("({} < {})", l.to_s(), r.to_s()),
             Expr::Boolean(e) => (if e {String::from("true")} else {String::from("false")}),
-            //Expr::Variable
+            Expr::Variable(ref e) => e.clone(),
         }
     }
     fn p(&self) { println!("{}", self.to_s()) }
@@ -46,17 +48,18 @@ impl Expr {
             Expr::Multiply(_,_) => true,
             Expr::LessThan(_,_) => true,
             Expr::Boolean(_) => false,
+            Expr::Variable(_) => true,
         }
     }
-    fn reduce(self) -> Expr {
+    fn reduce(self,env:&mut BTreeMap<String,&Expr>) -> Expr {
         match self {
             Expr::Num(e) => Expr::Num(e),
             Expr::Boolean(e) => Expr::Boolean(e),
             Expr::Add(l,r) => {
                 if l.is_reducible() {
-                    Expr::Add(box l.reduce(), r)
+                    Expr::Add(box l.reduce(env), r)
                 } else if r.is_reducible() {
-                    Expr::Add(l, box r.reduce())
+                    Expr::Add(l, box r.reduce(env))
                 }else {
                     if let box Expr::Num(ll) = l {
                         if let box Expr::Num(rr) = r {
@@ -67,9 +70,9 @@ impl Expr {
             },
             Expr::Multiply(l,r) => {
                 if l.is_reducible() {
-                    Expr::Multiply(box l.reduce(), r)
+                    Expr::Multiply(box l.reduce(env), r)
                 } else if r.is_reducible() {
-                    Expr::Multiply(l, box r.reduce())
+                    Expr::Multiply(l, box r.reduce(env))
                 } else {
                     if let box Expr::Num(ll) = l {
                         if let box Expr::Num(rr) = r {
@@ -80,9 +83,9 @@ impl Expr {
             }
             Expr::LessThan(l,r) => {
                 if l.is_reducible() {
-                    Expr::LessThan(box l.reduce(),r)
+                    Expr::LessThan(box l.reduce(env),r)
                 } else if r.is_reducible() {
-                    Expr::LessThan(l, box r.reduce())
+                    Expr::LessThan(l, box r.reduce(env))
                 } else {
                     if let box Expr::Num(ll) = l {
                         if let box Expr::Num(rr) = r {
@@ -91,6 +94,11 @@ impl Expr {
                     } else {Expr::Boolean(false)}
                 }
 
+            }
+            Expr::Variable(e) => {
+                if let Some(s) = env.get(&e) {
+                    (*s).clone()
+                } else {Expr::Boolean(false)}
             }
         }
     }

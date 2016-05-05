@@ -4,3 +4,7 @@ version = "0.1.0"
 authors = ["paomian"]
 
 [dependencies]
+
+[dependencies.nom]
+version = "~1.2.2"
+features = ["regexp"]
