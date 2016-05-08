@@ -7,7 +7,10 @@ pub enum Expr {
     Multiply(Box<Expr>,Box<Expr>),
     Boolean(bool),
     LessThan(Box<Expr>,Box<Expr>),
-    Variable(String)
+    Variable(String),
+    Assign(String,Box<Expr>),
+    DoNothing,
+    Statement(Box<Expr>,BTreeMap<String,Expr>),
 }
 
 #[derive(Clone)]
@@ -16,11 +19,11 @@ pub struct Machine {
 }
 
 impl Machine {
-    fn step(&mut self,env:&mut BTreeMap<String,&Expr>) {
+    fn step(&mut self,env:BTreeMap<String,Expr>) {
         self.ex = self.ex.clone().reduce(env);
     }
 
-    pub fn run(&mut self,env:&mut BTreeMap<String,&Expr>) {
+    pub fn run(&mut self,env:BTreeMap<String,Expr>) {
         while self.ex.is_reducible() {
             self.ex.p();
             self.step(env);
@@ -37,7 +40,10 @@ impl Expr {
             Expr::Multiply(ref l,ref r) => format!("({} * {})", l.to_s(), r.to_s()),
             Expr::LessThan(ref l,ref r) => format!("({} < {})", l.to_s(), r.to_s()),
             Expr::Boolean(e) => (if e {String::from("true")} else {String::from("false")}),
+            Expr::Assign(ref s, ref e) => format!("({} < {})", s.clone(), e.to_s()),
             Expr::Variable(ref e) => e.clone(),
+            Expr::DoNothing => String::from("DoNothing"),
+            Statement(Box<Expr>,BTreeMap<String,Expr>),
         }
     }
     fn p(&self) { println!("{}", self.to_s()) }
@@ -49,12 +55,15 @@ impl Expr {
             Expr::LessThan(_,_) => true,
             Expr::Boolean(_) => false,
             Expr::Variable(_) => true,
+            Expr::DoNothing => false,
+            Expr::Assign(_,_) => true,
         }
     }
-    fn reduce(self,env:&mut BTreeMap<String,&Expr>) -> Expr {
+    fn reduce(self,env:BTreeMap<String,Expr>) -> Expr {
         match self {
             Expr::Num(e) => Expr::Num(e),
             Expr::Boolean(e) => Expr::Boolean(e),
+            Expr::DoNothing => Expr::DoNothing,
             Expr::Add(l,r) => {
                 if l.is_reducible() {
                     Expr::Add(box l.reduce(env), r)
@@ -95,10 +104,18 @@ impl Expr {
                 }
 
             }
-            Expr::Variable(e) => {
-                if let Some(s) = env.get(&e) {
+            Expr::Variable(n) => {
+                if let Some(s) = env.get(&n) {
                     (*s).clone()
                 } else {Expr::Boolean(false)}
+            }
+            Expr::Assign(n,e) => {
+                if e.is_reducible() {
+                    Expr::Statement(box Expr::Assign(n,box e.reduce(env)),env)
+                } else {
+                    env.insert(n,*e);
+                    Expr::Statement(box Expr::DoNothing,env)
+                }
             }
         }
     }

@@ -14,7 +14,10 @@ fn main() {
         Box::new(expr::Multiply(Box::new(expr::Num(3)),Box::new(expr::Num(4)))),
     )};
     let mut env = BTreeMap::new();
-    e.run(&mut env);
-    //e.step();
-    //e.ex.p();
+    e.run(env);
+
+    let mut e1 = Machine {ex:expr::Add (
+        Box::new(expr::Multiply(Box::new(expr::Num(1)),Box::new(expr::Num(2)))),
+        Box::new(expr::Multiply(Box::new(expr::Num(3)),Box::new(expr::Num(4)))),
+    )};
 }
